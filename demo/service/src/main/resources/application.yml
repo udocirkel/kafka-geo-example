@@ -1,0 +1,36 @@
+app:
+  topic: demo-topic
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    org.apache.kafka: WARN
+    org.springframework.kafka: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: info,health,metrics
+
+server:
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    connection-timeout: 5s
+    keep-alive-timeout: 5s
+
+spring:
+  application:
+    name: demo-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: demo-group
+      auto-offset-reset: earliest
+      allow-auto-create-topics: true
+    producer:
+      acks: all
+      retries: 10
+      properties:
+        linger.ms: 5
+        enable.idempotence: true

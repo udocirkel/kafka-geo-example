@@ -1,0 +1,111 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>de.udocirkel.example.kafka</groupId>
+        <artifactId>example-kafka-demo</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>example-kafka-demo-docker</artifactId>
+    <packaging>docker</packaging>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <images>
+                        <image>
+                            <alias>test-kafka</alias>
+                            <name>apache/kafka:4.1.1</name>
+                            <run>
+                                <ports>
+                                    <port>kafka.port:9092</port>
+                                </ports>
+                                <env>
+                                    <!-- KRaft mode (no ZooKeeper) -->
+                                    <KAFKA_NODE_ID>1</KAFKA_NODE_ID>
+                                    <KAFKA_PROCESS_ROLES>broker,controller</KAFKA_PROCESS_ROLES>
+                                    <KAFKA_CONTROLLER_QUORUM_VOTERS>1@localhost:9093</KAFKA_CONTROLLER_QUORUM_VOTERS>
+                                    <!-- Networking -->
+                                    <KAFKA_LISTENERS>PLAINTEXT://:9092,CONTROLLER://:9093</KAFKA_LISTENERS>
+                                    <KAFKA_ADVERTISED_LISTENERS>PLAINTEXT://localhost:9092</KAFKA_ADVERTISED_LISTENERS>
+                                    <KAFKA_CONTROLLER_LISTENER_NAMES>CONTROLLER</KAFKA_CONTROLLER_LISTENER_NAMES>
+                                    <KAFKA_LISTENER_SECURITY_PROTOCOL_MAP>CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+                                    </KAFKA_LISTENER_SECURITY_PROTOCOL_MAP>
+                                    <!-- Single-node safe defaults -->
+                                    <KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR>1</KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR>
+                                    <KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR>1
+                                    </KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR>
+                                    <KAFKA_TRANSACTION_STATE_LOG_MIN_ISR>1</KAFKA_TRANSACTION_STATE_LOG_MIN_ISR>
+                                    <!-- Storage -->
+                                    <KAFKA_LOG_DIRS>/var/lib/kafka/data</KAFKA_LOG_DIRS>
+                                </env>
+                                <wait>
+                                    <log>\[KafkaRaftServer nodeId=1\] Kafka Server started \(kafka\.server\.KafkaRaftServer\)</log>
+                                    <time>30000</time>
+                                </wait>
+                            </run>
+                        </image>
+                        <image>
+                            <alias>demo-service</alias>
+                            <name>udocirkel/kafka-example/demo-service:${project.version}</name>
+                            <build>
+                                <dockerFileDir>${project.basedir}/../service/src/main/docker
+                                </dockerFileDir>
+                                <assembly>
+                                    <inline>
+                                        <fileSets>
+                                            <fileSet>
+                                                <directory>${project.basedir}/../service/target</directory>
+                                                <includes>
+                                                    <inculde>*.jar</inculde>
+                                                </includes>
+                                                <outputDirectory>/</outputDirectory>
+                                            </fileSet>
+                                        </fileSets>
+                                    </inline>
+                                    <mode>dir</mode>
+                                </assembly>
+                                <buildOptions>
+                                    <pull>false</pull>
+                                </buildOptions>
+                            </build>
+                            <run>
+                                <dependsOn>
+                                    <dependsOn>kafka</dependsOn>
+                                </dependsOn>
+                                <ports>
+                                    <port>demo.service.port:8080</port>
+                                </ports>
+                                <links>
+                                    <link>test-kafka:kafka</link>
+                                </links>
+                                <env>
+                                    <SPRING_KAFKA_BOOTSTRAP_SERVERS>kafka:9092</SPRING_KAFKA_BOOTSTRAP_SERVERS>
+                                </env>
+                                <wait>
+                                    <http>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <url>http://localhost:${demo.service.port}/actuator/health</url>
+                                        <allowAllHosts>true</allowAllHosts>
+                                    </http>
+                                    <time>30000</time>
+                                </wait>
+                            </run>
+                        </image>
+
+                    </images>
+                    <autoPull>true</autoPull>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

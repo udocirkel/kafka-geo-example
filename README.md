@@ -54,19 +54,11 @@ mvn clean verify
 
 ### **Play demo**
 
-Send messages to `demo-topic`
-```bash
-curl -X POST 'http://localhost:8087/api/messages' -H 'Content-Type: text/plain' -d 'Hallo Kafka!'
-```
+Try out the Kafka producer & consumer demo in action using the HTTP REST API.
+A `.http` file is included in the `http-test` folder with example requests.
+Open it in a compatible editor (e.g., IntelliJ IDEA), select the `demo` environment and run the requests to produce and consume messages.
 
-Read messages from `demo-topic`  
-* Query parameter `offset` (required): start reading from this message offset
-* Query parameter `limit` (optional): maximum number of messages to read
-```bash
-curl 'http://localhost:8087/api/messages?offset=5&limit=3'
-```
-
-View Kafka configuration and topic data via the [Kafka Console (AKHQ)](http://localhost:8081)
+View Kafka configuration and topic data via the [Kafka Console (AKHQ)](http://localhost:8081).
 
 ### **Stop environment**
 

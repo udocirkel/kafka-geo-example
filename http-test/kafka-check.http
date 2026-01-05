@@ -1,0 +1,13 @@
+
+### Send message to `demo-topic`
+POST {{DEMO_SERVICE_URL}}/api/messages
+Content-Type: text/plain
+
+Hello Kafka!
+
+
+### Read messages from `demo-topic`
+### * Query parameter `offset` (required): start reading from this message offset
+### * Query parameter `limit` (optional): maximum number of messages to read
+GET {{DEMO_SERVICE_URL}}/api/messages?offset=5&limit=3
+

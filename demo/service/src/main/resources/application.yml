@@ -1,6 +1,7 @@
 app:
   topic:
     name: ${APP_TOPIC_NAME:demo-topic}
+    name-tx: ${APP_TOPIC_NAME_TX:demo-topic-tx}
     partitions: ${APP_TOPIC_PARTITIONS:#{null}}
     replicas: ${APP_TOPIC_REPLICATIONS:#{null}}
     min-insync-replicas: ${APP_TOPIC_MIN_INSYNC_REPLICAS:#{null}}
@@ -40,7 +41,7 @@ spring:
         max.block.ms: 1000                          # Limits how long the producer blocks during startup when Kafka is unavailable
         retry.backoff.ms: 500                       # Waits 500ms between retries to avoid flooding the broker
         linger.ms: 10                               # Wait up to 10ms to batch messages for higher throughput
-        enable.idempotence: true                    # Prevents duplicate messages when retries occur, required for exactly-once semantics
+        enable.idempotence: true                    # Prevents duplicate messages when retries occur, enables exactly-once semantics
         max.in.flight.requests.per.connection: 5    # Ensures message order when using idempotence
     consumer:
       group-id: demo-group

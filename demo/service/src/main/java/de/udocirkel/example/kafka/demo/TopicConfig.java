@@ -13,6 +13,9 @@ public class TopicConfig {
     @Value("${app.topic.name}")
     private String name;
 
+    @Value("${app.topic.name-tx}")
+    private String nameTx;
+
     @Value("${app.topic.partitions}")
     private Integer partitions;
 
@@ -25,6 +28,36 @@ public class TopicConfig {
     @Bean
     public NewTopic appTopic() {
         var t = TopicBuilder.name(name);
+        if (partitions != null) {
+            t.partitions(partitions);
+        }
+        if (replicas != null) {
+            t.replicas(replicas);
+        }
+        if (minInsyncReplicas != null) {
+            t.config("min.insync.replicas", minInsyncReplicas);
+        }
+        return t.build();
+    }
+
+    @Bean
+    public NewTopic appTopicTx() {
+        var t = TopicBuilder.name(nameTx);
+        if (partitions != null) {
+            t.partitions(partitions);
+        }
+        if (replicas != null) {
+            t.replicas(replicas);
+        }
+        if (minInsyncReplicas != null) {
+            t.config("min.insync.replicas", minInsyncReplicas);
+        }
+        return t.build();
+    }
+
+    @Bean
+    public NewTopic appTopicTxDlt() {
+        var t = TopicBuilder.name(nameTx + "-dlt");
         if (partitions != null) {
             t.partitions(partitions);
         }

@@ -1,8 +1,17 @@
 # Kafka Geo Example
 
-This repository demonstrates **geo-redundant Kafka clusters** across **two data centers (DC1 and DC2)** with **active-standby replication** for failover.
-Messages can be produced via a REST endpoint to a Kafka topic and consumed by a **Spring Kafka** consumer.
-The demo shows how data is replicated between clusters and how applications behave when brokers or entire clusters are temporarily unavailable.
+This repository demonstrates **geo-redundant Kafka clusters** across **two data centers (DC1 and DC2)** with 
+**active-standby replication** for failover. Messages can be produced via a REST endpoint to a Kafka topic and consumed
+by a **Spring Kafka** consumer. The demo shows how data is replicated between clusters and how applications behave when
+brokers or entire clusters are temporarily unavailable.
+
+**⚠️ Disclaimer**
+
+This project is intended for demonstration, learning, and hands-on experimentation and does not provide a production-
+ready setup. It shows concepts and integrations in a simplified local environment.
+
+With additional hardening, configuration, and operational considerations, the demonstrated concepts can serve as a
+solid foundation for real-world deployments.
 
 ---
 
@@ -50,8 +59,7 @@ The demo shows how data is replicated between clusters and how applications beha
 │
 ├── docker-compose.yml      # Full geo-redundant environment (Kafka clusters DC1/DC2 + Mirror Maker + Demo service)
 ├── docker-compose-dev.yml  # Single-node Kafka environment (Single Kafka broker + Demo service)
-├── start.sh                # Start full geo-redundant environment
-├── stop.sh                 # Stop full geo-redundant environment
+├── ...
 ├── startdev.sh             # Start single-node environment
 └── stopdev.sh              # Stop single-node environment
 ```

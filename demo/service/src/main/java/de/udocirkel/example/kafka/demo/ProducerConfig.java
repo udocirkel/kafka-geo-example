@@ -9,7 +9,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
 @Configuration
-public class TxConfig {
+public class ProducerConfig {
 
     @Bean
     public ProducerFactory<String, String> producerFactory(KafkaProperties properties) {
@@ -24,13 +24,13 @@ public class TxConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(ProducerFactory<String, String> producerFactory) {
+    public KafkaTemplate<String, String> kafkaTemplate(@Qualifier("producerFactory") ProducerFactory<String, String> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
 
     @Bean
-    public KafkaTemplate<String, String> txKafkaTemplate(@Qualifier("txProducerFactory") ProducerFactory<String, String> factory) {
-        return new KafkaTemplate<>(factory);
+    public KafkaTemplate<String, String> txKafkaTemplate(@Qualifier("txProducerFactory") ProducerFactory<String, String> producerFactory) {
+        return new KafkaTemplate<>(producerFactory);
     }
 
 }

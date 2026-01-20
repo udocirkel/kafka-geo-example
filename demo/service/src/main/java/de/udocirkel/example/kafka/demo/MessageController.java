@@ -7,10 +7,6 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,23 +15,29 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class MessageController {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MessageController.class);
-
     private final MessageProducer producer;
 
-    private final MessageReader reader;
+    private final MessageConsumer consumer;
 
-    @Value("${app.topic.name}")
-    private String topic;
+    private final MessageReader reader;
 
     @PostMapping(
             produces = TEXT_PLAIN_VALUE,
             consumes = TEXT_PLAIN_VALUE)
     @ResponseStatus(HttpStatus.ACCEPTED)
     public String send(@RequestBody String message) {
-        LOG.debug("Sending message to topic '{}': {}", topic, message);
-        producer.send(topic, message);
-        return "ok";
+        producer.send(message);
+        return "OK";
+    }
+
+    @PostMapping(
+            path = "/tx",
+            produces = TEXT_PLAIN_VALUE,
+            consumes = TEXT_PLAIN_VALUE)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public String sendTransactional(@RequestBody String message) {
+        producer.sendTransactional(message);
+        return "OK";
     }
 
     @GetMapping(
@@ -44,8 +46,14 @@ public class MessageController {
             @RequestParam(name = "partition") int partition,
             @RequestParam(name = "offset") long offset,
             @RequestParam(name = "limit", defaultValue = "100") int limit) {
-        LOG.debug("Reading messages from topic '{}' with offset {} and limit {}", topic, offset, limit);
-        return reader.readFromOffset(topic, partition, offset, limit);
+        return reader.readFromOffset(partition, offset, limit);
+    }
+
+    @PostMapping("/replay-all")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public String replayAll() {
+        consumer.replayAll();
+        return "OK";
     }
 
 }

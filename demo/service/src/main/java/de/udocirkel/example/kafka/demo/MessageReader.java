@@ -7,15 +7,23 @@ import java.util.*;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MessageReader {
 
+    private static final Logger LOG = LoggerFactory.getLogger(MessageReader.class);
+
     private static final String READER_GROUP_ID = "demo-rest-reader-group";
 
     private final Properties consumerProps;
+
+    @Value("${app.topic.name}")
+    private String topic;
 
     public MessageReader(@Value("${spring.kafka.bootstrap-servers}") String bootstrapServers) {
         this.consumerProps = createConsumerProperties(bootstrapServers);
@@ -47,15 +55,20 @@ public class MessageReader {
         return props;
     }
 
-    public List<MessageRecord> readFromOffset(String topic, int partition, long offset, int limit) {
-        try (KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps)) {
+    public List<MessageRecord> readFromOffset(int partition, long offset, int limit) {
+        LOG.debug("Message read STARTED [topic={}, partition={}, offset={}, limit={}]", topic, partition, offset, limit);
+        try (var consumer = new KafkaConsumer<String, String>(consumerProps)) {
 
-            TopicPartition tp = new TopicPartition(topic, partition);
-            if (!partitionExists(consumer, tp)) return List.of();
+            var tp = new TopicPartition(topic, partition);
+            if (!partitionExists(consumer, tp)) {
+                return List.of();
+            }
 
             seekPartition(consumer, tp, offset);
 
-            return collectMessagesFromPartition(consumer, tp, limit, 5000);
+            var records = collectMessagesFromPartition(consumer, tp, limit, 5000);
+            LOG.debug("Message read OK [topic={}, partition={}, offset={}, limit={}]", topic, partition, offset, limit);
+            return records;
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -87,24 +100,20 @@ public class MessageReader {
     }
 
     private List<MessageRecord> collectMessagesFromPartition(KafkaConsumer<String, String> consumer, TopicPartition tp, int limit, long maxWaitMs) throws InterruptedException {
-
-        List<MessageRecord> result = new ArrayList<>();
+        var result = new ArrayList<MessageRecord>();
         long startTime = System.currentTimeMillis();
-
         while (result.size() < limit && System.currentTimeMillis() - startTime < maxWaitMs) {
-
-            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(500));
-
-            for (ConsumerRecord<String, String> r : records.records(tp)) {
+            var records = consumer.poll(Duration.ofMillis(500));
+            for (var r : records.records(tp)) {
                 result.add(new MessageRecord(r.topic(), r.key(), r.partition(), r.leaderEpoch(), r.offset(), r.timestamp(), r.value()));
-                if (result.size() >= limit) break;
+                if (result.size() >= limit) {
+                    break;
+                }
             }
-
             if (records.isEmpty()) {
                 Thread.sleep(100);
             }
         }
-
         return result;
     }
 

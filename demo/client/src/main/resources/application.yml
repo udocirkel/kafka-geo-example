@@ -1,0 +1,24 @@
+app:
+  service:
+    non-tx-url: ${APP_SERVICE_NON_TX_URL}
+    tx-url: ${APP_SERVICE_TX_URL}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: info,health,metrics
+
+server:
+  port: ${SERVER_PORT:8080}
+  tomcat:
+    connection-timeout: 5s
+    keep-alive-timeout: 5s
+
+spring:
+  application:
+    name: demo-client    # Logical name of the Spring Boot application

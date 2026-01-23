@@ -1,4 +1,8 @@
 
+########################################################################
+###  DEMO SERVICE ENDPOINTS
+########################################################################
+
 ### Send message to `demo-topic`
 ### * Include "fail-fast" in the message to simulate a producer-side error
 ### * Include "fail-late" in the message to simulate a listener-side error
@@ -6,7 +10,6 @@ POST {{DEMO_SERVICE_URL}}/api/messages
 Content-Type: text/plain
 
 Hello Kafka!
-
 
 ### Send a batch of messages to `demo-topic` transactionally
 ### * Include "fail-fast" in the message to test a producer-side rollback
@@ -16,14 +19,34 @@ Content-Type: text/plain
 
 Hello Kafka TX!
 
-
 ### Read messages from `demo-topic`
 ### * Query parameter `partition` (required): read from this partition (0..)
 ### * Query parameter `offset` (required): start reading from this message offset
 ### * Query parameter `limit` (optional): maximum number of messages to read
 GET {{DEMO_SERVICE_URL}}/api/messages?partition=0&offset=2&limit=5
 
-
 ### Replay all messages from `demo-topic`
 POST {{DEMO_SERVICE_URL}}/api/messages/replay-all
 
+
+########################################################################
+###  DEMO CLIENT ENDPOINTS
+########################################################################
+
+### Start polling the send message endpoint
+POST {{DEMO_CLIENT_URL}}/api/polling-jobs/NON_TX?intervalMillis=5000
+
+### Stop polling the send message endpoint
+DELETE {{DEMO_CLIENT_URL}}/api/polling-jobs/NON_TX
+
+### Get polling status for the send message endpoint
+GET {{DEMO_CLIENT_URL}}/api/polling-jobs/NON_TX
+
+### Start polling the transactional send message endpoint
+POST {{DEMO_CLIENT_URL}}/api/polling-jobs/TX?intervalMillis=5000
+
+### Stop polling the transactional send message endpoint
+DELETE {{DEMO_CLIENT_URL}}/api/polling-jobs/TX
+
+### Get polling status for the transactional send message endpoint
+GET {{DEMO_CLIENT_URL}}/api/polling-jobs/TX

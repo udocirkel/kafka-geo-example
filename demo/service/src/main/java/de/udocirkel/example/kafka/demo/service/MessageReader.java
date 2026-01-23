@@ -1,4 +1,4 @@
-package de.udocirkel.example.kafka.demo;
+package de.udocirkel.example.kafka.demo.service;
 
 import java.time.Duration;
 

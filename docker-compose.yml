@@ -1,23 +1,37 @@
 networks:
-  dc1:
+  dc1-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 192.168.155.0/24
-  dc2:
+        - subnet: 192.168.10.0/24
+  dc2-net:
     driver: bridge
     ipam:
       config:
-        - subnet: 192.168.156.0/24
+        - subnet: 192.168.20.0/24
+  ops-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.30.0/24
+  clients-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.40.0/24
 
 services:
 
   # Kafka Console (AKHQ) => http://localhost:8081
   # Demo Service         => http://localhost:8087
 
-  #############################################
-  ###  Data Center 1 (DC1) - Kafka Cluster  ###
-  #############################################
+  #############################
+  ###  Data Center 1 (DC1)  ###
+  #############################
+
+  # --------------------
+  #  Kafka Cluster DC1
+  # --------------------
 
   zookeeper-dc1:
     image: confluentinc/cp-zookeeper:7.8.6
@@ -36,10 +50,11 @@ services:
       - ./data/geo_demo/zookeeper_dc1/data:/var/lib/zookeeper/data
       - ./data/geo_demo/zookeeper_dc1/log:/var/lib/zookeeper/log
     networks:
-      dc1:
-        ipv4_address: 192.168.155.2
+      dc1-net:
+        ipv4_address: 192.168.10.2
     profiles:
       - site-dc1
+      - kafka-dc1
       - coordinator-dc1
 
   kafka1-dc1:
@@ -81,14 +96,15 @@ services:
     volumes:
       - ./data/geo_demo/kafka1_dc1:/var/lib/kafka/data
     networks:
-      dc1:
-        ipv4_address: 192.168.155.10
+      dc1-net:
+        ipv4_address: 192.168.10.10
         aliases:
           - kafka-dc1.internal
           - kafka.service.local
     profiles:
       - site-dc1
       - kafka-dc1
+      - broker-dc1
 
   kafka2-dc1:
     # depends on zookeeper-dc1
@@ -129,14 +145,15 @@ services:
     volumes:
       - ./data/geo_demo/kafka2_dc1:/var/lib/kafka/data
     networks:
-      dc1:
-        ipv4_address: 192.168.155.11
+      dc1-net:
+        ipv4_address: 192.168.10.11
         aliases:
           - kafka-dc1.internal
           - kafka.service.local
     profiles:
       - site-dc1
       - kafka-dc1
+      - broker-dc1
 
   kafka3-dc1:
     # depends on zookeeper-dc1
@@ -177,18 +194,93 @@ services:
     volumes:
       - ./data/geo_demo/kafka3_dc1:/var/lib/kafka/data
     networks:
-      dc1:
-        ipv4_address: 192.168.155.12
+      dc1-net:
+        ipv4_address: 192.168.10.12
         aliases:
           - kafka-dc1.internal
           - kafka.service.local
     profiles:
       - site-dc1
       - kafka-dc1
+      - broker-dc1
 
-  #############################################
-  ###  Data Center 2 (DC2) - Kafka Cluster  ###
-  #############################################
+  # ----------------------
+  #  Mirror Maker v2 DC1
+  # ----------------------
+  #  - Single worker demo
+  #  - Replication DC2 -> DC1
+  # ----------------------
+
+  mirrormaker-dc1:
+    # depends on kafka*-dc1, kafka*-dc2
+    image: apache/kafka:4.1.1
+    restart: on-failure:5
+    environment:
+      # Kafka Connect worker runs in DC1
+      CONNECT_BOOTSTRAP_SERVERS: "kafka-dc2.internal"
+      CONNECT_GROUP_ID: "mm2-dc2-group"
+      # Internal Connect topics (must be replicated)
+      CONNECT_CONFIG_STORAGE_TOPIC: __mm2_configs
+      CONNECT_OFFSET_STORAGE_TOPIC: __mm2_offsets
+      CONNECT_STATUS_STORAGE_TOPIC: __mm2_status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
+    command: >
+      bash -c "
+      /opt/kafka/bin/connect-mirror-maker.sh /opt/mm2.properties
+      "
+    healthcheck:
+      test: [ "CMD-SHELL", "grep -q 'Kafka MirrorMaker started' /opt/kafka/logs/connect.log" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      - ./config/mm2-dc2-to-dc1.properties:/opt/mm2.properties
+    networks: [ dc1-net, dc2-net ]
+    profiles:
+      - site-dc1
+      - replicator-dc1
+
+  # -------------------
+  #  Demo Service DC1
+  # -------------------
+
+  demo-service-dc1:
+    image: udocirkel/kafka-example/demo-service:1.0.0
+    restart: always
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-dc1.internal:9092
+      APP_TOPIC_NAME: demo-topic
+      APP_TOPIC_NAME_TX: demo-topic-tx
+      APP_TOPIC_PARTITIONS: 4
+      APP_TOPIC_REPLICAS: 3
+      APP_TOPIC_MIN_INSYNC_REPLICAS: 2
+      LOG_LEVEL: DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-H", "Connection: close", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "8087:8080"
+    networks:
+      dc1-net:
+        aliases:
+          - demo-service
+    profiles:
+      - site-dc1
+      - services-dc1
+
+  ##############################
+  ###  Data Center v2 (DC2)  ###
+  ##############################
+
+  # --------------------
+  #  Kafka Cluster DC2
+  # --------------------
 
   zookeeper-dc2:
     image: confluentinc/cp-zookeeper:7.8.6
@@ -207,10 +299,11 @@ services:
       - ./data/geo_demo/zookeeper_dc2/data:/var/lib/zookeeper/data
       - ./data/geo_demo/zookeeper_dc2/log:/var/lib/zookeeper/log
     networks:
-      dc2:
-        ipv4_address: 192.168.156.2
+      dc2-net:
+        ipv4_address: 192.168.20.2
     profiles:
       - site-dc2
+      - kafka-dc2
       - coordinator-dc2
 
   kafka1-dc2:
@@ -252,13 +345,14 @@ services:
     volumes:
       - ./data/geo_demo/kafka1_dc2:/var/lib/kafka/data
     networks:
-      dc2:
-        ipv4_address: 192.168.156.10
+      dc2-net:
+        ipv4_address: 192.168.20.10
         aliases:
           - kafka-dc2.internal
     profiles:
       - site-dc2
       - kafka-dc2
+      - broker-dc2
 
   kafka2-dc2:
     # depends on zookeeper-dc2
@@ -299,13 +393,14 @@ services:
     volumes:
       - ./data/geo_demo/kafka2_dc2:/var/lib/kafka/data
     networks:
-      dc2:
-        ipv4_address: 192.168.156.11
+      dc2-net:
+        ipv4_address: 192.168.20.11
         aliases:
           - kafka-dc2.internal
     profiles:
       - site-dc2
       - kafka-dc2
+      - broker-dc2
 
   kafka3-dc2:
     # depends on zookeeper-dc2
@@ -346,53 +441,21 @@ services:
     volumes:
       - ./data/geo_demo/kafka3_dc2:/var/lib/kafka/data
     networks:
-      dc2:
-        ipv4_address: 192.168.156.12
+      dc2-net:
+        ipv4_address: 192.168.20.12
         aliases:
           - kafka-dc2.internal
     profiles:
       - site-dc2
       - kafka-dc2
+      - broker-dc2
 
-  #######################################################################
-  ###  Data Center 1 (DC1) - Mirror Maker 2 (single worker for demo)  ###
-  #######################################################################
-
-  mirrormaker-dc1:
-    # depends on kafka*-dc1, kafka*-dc2
-    image: apache/kafka:4.1.1
-    restart: on-failure:5
-    environment:
-      # Kafka Connect worker runs in DC1
-      CONNECT_BOOTSTRAP_SERVERS: "kafka-dc2.internal"
-      CONNECT_GROUP_ID: "mm2-dc2-group"
-      # Internal Connect topics (must be replicated)
-      CONNECT_CONFIG_STORAGE_TOPIC: __mm2_configs
-      CONNECT_OFFSET_STORAGE_TOPIC: __mm2_offsets
-      CONNECT_STATUS_STORAGE_TOPIC: __mm2_status
-      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 3
-      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 3
-      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 3
-    command: >
-      bash -c "
-      /opt/kafka/bin/connect-mirror-maker.sh /opt/mm2.properties
-      "
-    healthcheck:
-      test: [ "CMD-SHELL", "grep -q 'Kafka MirrorMaker started' /opt/kafka/logs/connect.log" ]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 30s
-    volumes:
-      - ./config/mm2-dc2-to-dc1.properties:/opt/mm2.properties
-    networks: [ dc1, dc2 ]
-    profiles:
-      - site-dc1
-      - repl-dc2-to-dc1
-
-  #######################################################################
-  ###  Data Center 2 (DC2) - Mirror Maker 2 (single worker for demo)  ###
-  #######################################################################
+  # ----------------------
+  #  Mirror Maker v2 DC2
+  # ----------------------
+  #  - Single worker demo
+  #  - Replication DC1 -> DC2
+  # ----------------------
 
   mirrormaker-dc2:
     # depends on kafka*-dc1, kafka*-dc2
@@ -421,14 +484,49 @@ services:
       start_period: 30s
     volumes:
       - ./config/mm2-dc1-to-dc2.properties:/opt/mm2.properties
-    networks: [ dc1, dc2 ]
+    networks: [ dc1-net, dc2-net ]
     profiles:
       - site-dc2
-      - repl-dc1-to-dc2
+      - replicator-dc2
 
-  ##############################
-  ###  Kafka Console (AKHQ)  ###
-  ##############################
+  # -------------------
+  #  Demo Service DC2
+  # -------------------
+
+  demo-service-dc2:
+    image: udocirkel/kafka-example/demo-service:1.0.0
+    restart: always
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-dc2.internal:9092
+      APP_TOPIC_NAME: demo-topic
+      APP_TOPIC_NAME_TX: demo-topic-tx
+      APP_TOPIC_PARTITIONS: 4
+      APP_TOPIC_REPLICAS: 3
+      APP_TOPIC_MIN_INSYNC_REPLICAS: 2
+      LOG_LEVEL: DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-H", "Connection: close", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    ports:
+      - "8087:8080"
+    networks:
+      dc2-net:
+        aliases:
+          - demo-service
+    profiles:
+      - site-dc2
+      - services-dc2
+
+  ###################
+  ###  Operating  ###
+  ###################
+
+  # -----------------------
+  #  Kafka Console (AKHQ)
+  # -----------------------
 
   akhq:
     # depends on kafka*-dc1, kafka*-dc2
@@ -446,64 +544,34 @@ services:
                 bootstrap.servers: "kafka-dc2.internal:9092"
     ports:
       - "8081:8080"
-    networks: [ dc1, dc2 ]
+    networks: [ ops-net, dc1-net, dc2-net ]
     profiles:
-      - site-dc1
-      - site-dc2
-      - kafka-ui
+      - operating
 
-  #############################################
-  ###  Data Center 1 (DC1) - Demo Services  ###
-  #############################################
+  #####################
+  ###  Client Apps  ###
+  #####################
 
-  demo-service-dc1:
-    image: udocirkel/kafka-example/demo-service:1.0.0
+  # --------------
+  #  Demo Client
+  # --------------
+
+  demo-client:
+    image: udocirkel/kafka-example/demo-client:1.0.0
     restart: always
     environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-dc1.internal:9092
-      APP_TOPIC_NAME: demo-topic
-      APP_TOPIC_NAME_TX: demo-topic-tx
-      APP_TOPIC_PARTITIONS: 4
-      APP_TOPIC_REPLICAS: 3
-      APP_TOPIC_MIN_INSYNC_REPLICAS: 2
+      APP_SERVICE_NON_TX_URL: http://demo-service:8080/api/messages
+      APP_SERVICE_TX_URL: http://demo-service:8080/api/messages/tx
       LOG_LEVEL: DEBUG
     healthcheck:
-      test: ["CMD", "curl", "--http1.1", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "curl", "-f", "-H", "Connection: close", "http://localhost:8080/actuator/health"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 30s
     ports:
-      - "8087:8080"
-    networks: [ dc1 ]
+      - "8088:8080"
+    networks: [ clients-net, dc1-net, dc2-net ]
     profiles:
-      - site-dc1
-      - apps-dc1
+      - clients
 
-  #############################################
-  ###  Data Center 2 (DC2) - Demo Services  ###
-  #############################################
-
-  demo-service-dc2:
-    image: udocirkel/kafka-example/demo-service:1.0.0
-    restart: always
-    environment:
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka-dc2.internal:9092
-      APP_TOPIC_NAME: demo-topic
-      APP_TOPIC_NAME_TX: demo-topic-tx
-      APP_TOPIC_PARTITIONS: 4
-      APP_TOPIC_REPLICAS: 3
-      APP_TOPIC_MIN_INSYNC_REPLICAS: 2
-      LOG_LEVEL: DEBUG
-    healthcheck:
-      test: ["CMD", "curl", "--http1.1", "-f", "http://localhost:8080/actuator/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 30s
-    ports:
-      - "8087:8080"
-    networks: [ dc2 ]
-    profiles:
-      - site-dc2
-      - apps-dc2

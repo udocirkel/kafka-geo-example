@@ -1,4 +1,4 @@
-package de.udocirkel.example.kafka.demo;
+package de.udocirkel.example.kafka.demo.service;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -7,18 +7,22 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.kafka.core.KafkaOperations;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.ErrorResponseException;
 
 @Service
 public class MessageProducer {
 
     private static final Logger LOG = LoggerFactory.getLogger(MessageProducer.class);
 
-    private final AtomicInteger counter = new AtomicInteger(0);
+    private final AtomicInteger counterNonTx = new AtomicInteger(0);
+    private final AtomicInteger counterTx = new AtomicInteger(0);
 
     private final KafkaTemplate<String, String> kafkaTemplate;
 
@@ -39,7 +43,7 @@ public class MessageProducer {
 
     public void send(String message) {
         LOG.debug("Message send STARTED [topic={}, tx=false, value={}]", topic, message);
-        var id = counter.incrementAndGet();
+        var id = counterNonTx.incrementAndGet();
         var messageWithId = message + " (" + id + ")";
         sendMessage(kafkaTemplate, topic, messageWithId);
         if (message.contains("fail-fast")) {
@@ -48,14 +52,14 @@ public class MessageProducer {
         LOG.debug("Message send OK [topic={}, tx=false, value={}]", topic, message);
     }
 
-    @Transactional("kafkaTransactionManager") // optional, wenn Spring Boot Transactions nutzen
-    public void sendTransactional(String message) {
-        LOG.debug("Message send STARTED in transaction [topic={}, tx=true, value={}]", topicTx, message);
-        var id = counter.incrementAndGet();
-        var messageWithId1 = message + " (" + id + ".1)";
-        var messageWithId2 = message + " (" + id + ".2)";
-        var messageWithId3 = message + " (" + id + ".3)";
+    @Transactional("kafkaTransactionManager")
+    public void sendTransactional(String message) throws ErrorResponseException {
         try {
+            LOG.debug("Message send STARTED in transaction [topic={}, tx=true, value={}]", topicTx, message);
+            var id = counterTx.incrementAndGet();
+            var messageWithId1 = message + " (" + id + ".1)";
+            var messageWithId2 = message + " (" + id + ".2)";
+            var messageWithId3 = message + " (" + id + ".3)";
             txKafkaTemplate
                     .executeInTransaction(ops -> {
                         sendMessage(ops, topicTx, messageWithId1);
@@ -69,6 +73,8 @@ public class MessageProducer {
                     });
         } catch (RuntimeException e) {
             LOG.error("Message transaction ROLLED BACK [topic={}, tx=true, reason={}]", topicTx, e.getMessage());
+            LOG.error("Message transaction ROLLED BACK", e); // FIXME
+            throw createErrorResponseException(e, topicTx);
         }
     }
 
@@ -88,6 +94,22 @@ public class MessageProducer {
             LOG.debug("Message send OK [topic={}, partition={}, keySize={}, valueSize={}, value={}]",
                     rm.topic(), rm.partition(), rm.serializedKeySize(), rm.serializedValueSize(), pm.value());
         }
+    }
+
+    private ErrorResponseException createErrorResponseException(Throwable throwable, String topic) {
+        return new ErrorResponseException(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                createProblemDetail(throwable.getMessage(), topic),
+                throwable
+        );
+    }
+
+    private static ProblemDetail createProblemDetail(String message, String topic) {
+        var problem = ProblemDetail.forStatus(HttpStatus.INTERNAL_SERVER_ERROR);
+        problem.setTitle("Error sending Kafka message [TX rolled back]");
+        problem.setDetail(message);
+        problem.setProperty("topic", topic);
+        return problem;
     }
 
 }

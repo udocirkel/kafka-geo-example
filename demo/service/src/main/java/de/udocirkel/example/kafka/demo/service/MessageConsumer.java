@@ -1,4 +1,4 @@
-package de.udocirkel.example.kafka.demo;
+package de.udocirkel.example.kafka.demo.service;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.common.TopicPartition;
@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.listener.ConsumerSeekAware;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,15 +35,17 @@ public class MessageConsumer implements ConsumerSeekAware {
     private String topicTx;
 
     @KafkaListener(topics = "${app.topic.name}")
-    public void receive(String message) {
+    public void receive(String message, Acknowledgment ack) {
         LOG.debug("Message receive STARTED [topic={}, tx=false, value={}]", topic, message);
         if (message.contains("fail-late")) {
             throw new RuntimeException("Simulated consumer error");
         }
         LOG.debug("Message receive OK [topic={}, tx=false, value={}]", topic, message);
+        ack.acknowledge();
     }
 
     @KafkaListener(topics = "${app.topic.name-tx}", containerFactory = "txKafkaListenerContainerFactory")
+    @Transactional("kafkaTransactionManager")
     public void receiveTx(String message) {
         LOG.debug("Message receive STARTED in transaction [topic={}, tx=true, value={}]", topicTx, message);
         if (message.contains("fail-late")) {

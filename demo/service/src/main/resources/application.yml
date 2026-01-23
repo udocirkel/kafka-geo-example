@@ -32,9 +32,10 @@ spring:
     admin:
       auto-create: true                             # Allows to create topics from Spring beans, even if broker auto-create is disabled, filling in any unspecified settings from broker defaults
       fail-fast: true                               # Allows the application to start even if Kafka is not reachable at startup
-    listener:
+    listener:    # Configures default ConcurrentKafkaListenerContainerFactory
       missing-topics-fatal: false                   # Prevents the application from failing if topics do not exist yet
-    producer:
+      ack-mode: manual                              # Offsets are committed only when ack.acknowledge() is called; not automatically or as part of a transaction
+    producer:    # Configures default ProducerFactory → KafkaTemplate
       acks: all                                     # Wait for all in-sync replicas to acknowledge writes
       retries: 600                                  # Number of retries for temporary failures (retries for 600x500ms=5m)
       properties:
@@ -43,9 +44,11 @@ spring:
         linger.ms: 10                               # Wait up to 10ms to batch messages for higher throughput
         enable.idempotence: true                    # Prevents duplicate messages when retries occur, enables exactly-once semantics
         max.in.flight.requests.per.connection: 5    # Ensures message order when using idempotence
-    consumer:
+    consumer:    # Configures default ConsumerFactory
       group-id: demo-group
-      auto-offset-reset: earliest
+      auto-offset-reset: earliest                   # Start consuming from the oldest record if no committed offset exists (e.g. first start or offset lost)
+      enable-auto-commit: false                     # Offsets are never committed automatically; commit occurs only via transaction or manually with acknowledgment
+      isolation-level: read_committed               # Only read records from committed transactions
       properties:
         reconnect.backoff.ms: 1000                  # Controls how quickly the consumer retries connecting to Kafka
         reconnect.backoff.max.ms: 10000             # Limits the maximum delay between reconnect attempts

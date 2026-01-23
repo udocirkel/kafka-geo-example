@@ -1,5 +1,5 @@
 networks:
-  demo:
+  demo-net:
     driver: bridge
 
 services:
@@ -45,7 +45,7 @@ services:
       start_period: 30s
     volumes:
       - ./data/simple_demo/kafka:/var/lib/kafka/data
-    networks: [ demo ]
+    networks: [ demo-net ]
 
   ##############################
   ###  Kafka Console (AKHQ)  ###
@@ -65,7 +65,7 @@ services:
                 bootstrap.servers: "kafka:9092"
     ports:
       - "8081:8080"
-    networks: [ demo ]
+    networks: [ demo-net ]
 
   #######################
   ###  Demo Services  ###
@@ -80,6 +80,12 @@ services:
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       LOG_LEVEL: DEBUG
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-H", "Connection: close", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
     ports:
       - "8087:8080"
-    networks: [ demo ]
+    networks: [ demo-net ]

@@ -1,4 +1,4 @@
-package de.udocirkel.example.kafka.demo;
+package de.udocirkel.example.kafka.demo.service;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
@@ -7,6 +7,8 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/messages")
 @RequiredArgsConstructor
 public class MessageController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(MessageController.class);
 
     private final MessageProducer producer;
 

@@ -100,6 +100,54 @@
                                 </wait>
                             </run>
                         </image>
+                        <image>
+                            <alias>demo-client</alias>
+                            <name>udocirkel/kafka-example/demo-client:${project.version}</name>
+                            <build>
+                                <dockerFileDir>${project.basedir}/../client/src/main/docker
+                                </dockerFileDir>
+                                <assembly>
+                                    <inline>
+                                        <fileSets>
+                                            <fileSet>
+                                                <directory>${project.basedir}/../client/target</directory>
+                                                <includes>
+                                                    <inculde>*.jar</inculde>
+                                                </includes>
+                                                <outputDirectory>/</outputDirectory>
+                                            </fileSet>
+                                        </fileSets>
+                                    </inline>
+                                    <mode>dir</mode>
+                                </assembly>
+                                <buildOptions>
+                                    <pull>false</pull>
+                                </buildOptions>
+                            </build>
+                            <run>
+                                <dependsOn>
+                                    <dependsOn>demo-service</dependsOn>
+                                </dependsOn>
+                                <ports>
+                                    <port>demo.client.port:8080</port>
+                                </ports>
+                                <links>
+                                    <link>demo-service:demo-service</link>
+                                </links>
+                                <env>
+                                    <APP_SERVICE_NON_TX_URL>http://localhost:${demo.service.port}/api/messages</APP_SERVICE_NON_TX_URL>
+                                    <APP_SERVICE_TX_URL>http://localhost:${demo.service.port}/api/messages/tx</APP_SERVICE_TX_URL>
+                                </env>
+                                <wait>
+                                    <http>
+                                        <!--suppress UnresolvedMavenProperty -->
+                                        <url>http://localhost:${demo.client.port}/actuator/health</url>
+                                        <allowAllHosts>true</allowAllHosts>
+                                    </http>
+                                    <time>30000</time>
+                                </wait>
+                            </run>
+                        </image>
 
                     </images>
                     <autoPull>true</autoPull>

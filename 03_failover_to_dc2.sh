@@ -1,17 +1,18 @@
 #!/bin/bash
 
 echo ""
-echo "Stopping Kafka replication DC1->DC2"
-echo "-----------------------------------"
+echo "Stopping Services DC1, Kafka Replicator DC1->DC2"
+echo "------------------------------------------------"
 docker compose \
-    --profile repl-dc1-to-dc2 \
+    --profile services-dc1 \
+    --profile replicator-dc2 \
     down
 
 echo ""
-echo "Starting client app DC2"
-echo "-----------------------"
+echo "Starting Services DC2"
+echo "---------------------"
 docker compose \
-    --profile apps-dc2 \
+    --profile services-dc2 \
     up -d
 
 ./wait-stack.sh \

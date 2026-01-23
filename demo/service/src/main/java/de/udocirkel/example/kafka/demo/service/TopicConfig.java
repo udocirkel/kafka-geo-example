@@ -1,4 +1,4 @@
-package de.udocirkel.example.kafka.demo;
+package de.udocirkel.example.kafka.demo.service;
 
 import org.apache.kafka.clients.admin.NewTopic;
 

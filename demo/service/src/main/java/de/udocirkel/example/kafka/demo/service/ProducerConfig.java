@@ -1,4 +1,4 @@
-package de.udocirkel.example.kafka.demo;
+package de.udocirkel.example.kafka.demo.service;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
@@ -24,12 +24,14 @@ public class ProducerConfig {
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(@Qualifier("producerFactory") ProducerFactory<String, String> producerFactory) {
+    public KafkaTemplate<String, String> kafkaTemplate(
+            @Qualifier("producerFactory") ProducerFactory<String, String> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
 
     @Bean
-    public KafkaTemplate<String, String> txKafkaTemplate(@Qualifier("txProducerFactory") ProducerFactory<String, String> producerFactory) {
+    public KafkaTemplate<String, String> txKafkaTemplate(
+            @Qualifier("txProducerFactory") ProducerFactory<String, String> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
     }
 

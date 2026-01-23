@@ -113,6 +113,7 @@ mvn clean verify
 |--------------------------|-----------------------|
 | **Kafka Console (AKHQ)** | http://localhost:8081 |
 | **Demo Service**         | http://localhost:8087 |
+| **Demo Client**          | http://localhost:8088 |
 
 ---
 
